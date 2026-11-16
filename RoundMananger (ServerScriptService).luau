@@ -1,5 +1,4 @@
--- Round System
--- TODO : 라운드 중 플레이어가 나갈 경우 예외처리
+-- 라운드 시스템
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
