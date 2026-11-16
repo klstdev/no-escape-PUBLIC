@@ -1,0 +1,111 @@
+-- Round System
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+local teams = game:GetService("Teams")
+
+local survivorspawn = workspace:WaitForChild("SurvivorSpawns")
+local lobbyFolder = workspace:WaitForChild("Lobby")
+
+local INTERMISSION = 20 -- 인터미션 시간 
+local Round = 30 -- 라운드 지속시간
+local min_players = 1 -- 나중에 2로 바꾸셈 ( 최소 플레이어수 )
+
+-- shared values (UI)
+local statusValue = Instance.new("StringValue")
+statusValue.Name = "Status"
+statusValue.Value = "Waiting"
+statusValue.Parent = ReplicatedStorage
+
+local timerValue = Instance.new("IntValue")
+timerValue.Name = "Timer"
+timerValue.Value = 0
+timerValue.Parent = ReplicatedStorage
+
+local function WaitPlayers()
+	
+	local targetTeam = teams:WaitForChild("Spectate") -- 관전 팀
+	-- 모든 플레이어를 관전팀으로 옮김
+	
+	for _, player in ipairs(Players:GetPlayers()) do
+		player.Team = targetTeam
+	end
+	
+	statusValue.Value = "Waiting"
+	timerValue.Value = 0
+	while #Players:GetPlayers() < min_players do
+		warn("플레이어 없음 ㅅㄱ")
+		task.wait(1)
+	end
+end
+
+local function RunIntermission()
+	statusValue.Value = "Intermission"
+	local t = INTERMISSION
+	while t > 0 do
+		if #Players:GetPlayers() < min_players then
+			WaitPlayers()
+			statusValue.Value = "Intermission"
+			t = INTERMISSION
+		end
+		timerValue.Value = t
+		task.wait(1)
+		t -= 1
+	end
+end
+
+local function TeleportPlayer(player, part)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+	end
+end
+
+local function TeleportAllRandom(folder)
+	local spawns = folder:GetChildren()
+	if #spawns == 0 then
+		warn(folder.Name .. " 폴더 안에 파트 없음")
+		return
+	end
+	for _, player in ipairs(Players:GetPlayers()) do
+		TeleportPlayer(player, spawns[math.random(1, #spawns)])
+	end
+end
+
+local function RunRound()
+	-- map spawn and spawn killer models in here // don't delete this line
+	
+	local targetTeam = teams:WaitForChild("Survivor") 
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		player.Team = targetTeam
+	end
+	
+	TeleportAllRandom(survivorspawn)
+
+	statusValue.Value = "Round"
+	local t = Round
+	while t > 0 do
+		timerValue.Value = t
+		task.wait(1)
+		t -= 1
+	end
+	timerValue.Value = 0
+
+	-- lobby spawn and delete killer models in here
+	
+	local targetTeam = teams:WaitForChild("Spectate")
+	
+	for _, player in ipairs(Players:GetPlayers()) do
+		player.Team = targetTeam
+	end
+	
+	TeleportAllRandom(lobbyFolder)
+end
+
+while true do
+	WaitPlayers()
+	RunIntermission()
+	RunRound()
+end
