@@ -1,4 +1,10 @@
--- 라운드 시스템
+-- Round System
+
+--[[
+	TODO : 라운드 중 플레이어가 나갈 경우 예외처리 - 픽스됨
+	이제 알았는데 , 플레이어가 로비로 텔포할때, 아무 파트에 텔포함 ㅇㅇ... - 픽스됨
+]]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -77,7 +83,7 @@ local active = {} -- 라운드에 있는 플레이어 목록
 
 local function GetAliveCount()
 	local count = 0
-	for player in ipairs(active) do
+	for player in pairs(active) do
 		local char = player.Character
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		if hum and hum.Health > 0 then
@@ -125,6 +131,14 @@ local function RunRound()
 	
 	for _, player in ipairs(Players:GetPlayers()) do
 		player.Team = spectateteam
+	end
+	
+	--// LobbySpawn 파트에 텔포하게 지정하기
+	--// 내가 왜 이걸 수정 못했지? 그냥 3줄 코드인데;;
+	local lobbyspawn = lobbyFolder:WaitForChild("LobbySpawn")
+	
+	for _, player in ipairs(Players:GetPlayers()) do
+		TeleportPlayer(player, lobbyspawn)
 	end
 	
 	active = {}
