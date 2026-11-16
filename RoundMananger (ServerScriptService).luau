@@ -1,6 +1,5 @@
 -- Round System
--- LETTER FOR DEV TEAM : 영어 좀 배워
--- TODO : 라운드 중 플레이어가 나갔을 경우 예외처리 필요
+-- TODO : 라운드 중 플레이어가 나갈 경우 예외처리
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -75,37 +74,67 @@ local function TeleportAllRandom(folder)
 	end
 end
 
-local function RunRound()
-	-- map spawn and spawn killer models in here // don't delete this line
-	
-	local targetTeam = teams:WaitForChild("Survivor") 
+local active = {} -- 라운드에 있는 플레이어 목록
 
+local function GetAliveCount()
+	local count = 0
+	for player in ipairs(active) do
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then
+			count += 1
+		end
+	end
+	return count
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	active[player] = nil
+end)
+
+
+
+local function RunRound()
+	local survivorteam = teams:WaitForChild("Survivor")
+	local spectateteam = teams:WaitForChild("Spectate")
+	
+	active = {} -- 플레이어 등록
 	for _, player in ipairs(Players:GetPlayers()) do
-		player.Team = targetTeam
+		active[player] = true
+		player.Team = survivorteam
 	end
 	
 	TeleportAllRandom(survivorspawn)
 
 	statusValue.Value = "Round"
+	
 	local t = Round
 	while t > 0 do
+		if next(active) == nil then
+			-- warn("no active players. ending round")
+			break
+		end
+		
+		if GetAliveCount() == 0 then
+			break
+		end
 		timerValue.Value = t
 		task.wait(1)
 		t -= 1
 	end
 	timerValue.Value = 0
-
-	-- lobby spawn and delete killer models in here
-	
-	local targetTeam = teams:WaitForChild("Spectate")
 	
 	for _, player in ipairs(Players:GetPlayers()) do
-		player.Team = targetTeam
+		player.Team = spectateteam
 	end
+	
+	active = {}
 	
 	TeleportAllRandom(lobbyFolder)
 end
 
+
+-- 메인 루프 // 건들면 뒤짐
 while true do
 	WaitPlayers()
 	RunIntermission()
