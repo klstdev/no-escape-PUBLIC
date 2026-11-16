@@ -1,4 +1,5 @@
 -- Round System
+-- LETTER FOR DEV TEAM : 영어 좀 배워
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
