@@ -62,10 +62,12 @@ end
 
 local function TeleportPlayer(player, part)
 	local character = player.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if root then
-		root.CFrame = part.CFrame + Vector3.new(0, 5, 0)
-	end
+	if not character or not player.Parent then return end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	character:PivotTo(part.CFrame * CFrame.new(0, 5, 0))
 end
 
 local function TeleportAllRandom(folder)
