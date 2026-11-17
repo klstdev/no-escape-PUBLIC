@@ -2,7 +2,7 @@
 
 --[[
 	TODO : 라운드 중 플레이어가 나갈 경우 예외처리 - 완
-	라운드 시작하고 점프 못하게 막음 ㅇㅇ
+	
 	이제 알았는데 , 플레이어가 로비로 텔포할때, 아무 파트에 텔포함 ㅇㅇ...
 ]]
 
@@ -74,10 +74,18 @@ end
 
 local function TeleportAllRandom(folder)
 	local spawns = folder:GetChildren()
+	
+	for _, obj in ipairs(folder:GetChildren()) do
+		if obj:IsA("BasePart") then
+			table.insert(spawns, obj)
+		end
+	end
+	
 	if #spawns == 0 then
 		warn(folder.Name .. " 폴더 안에 파트 없음")
 		return
 	end
+	
 	for _, player in ipairs(Players:GetPlayers()) do
 		TeleportPlayer(player, spawns[math.random(1, #spawns)])
 	end
@@ -85,10 +93,10 @@ end
 
 local active = {} -- 라운드에 있는 플레이어 목록
 
-
 --[[
 	라운드중에 플레이어 점프 못 하게 막는 코드
 ]]
+
 local Default_JumpPower = 50
 local Default_JumpHeight = 7.2
 
@@ -186,11 +194,6 @@ local function RunRound()
 	
 	active = {}
 	
-	for _, player in ipairs(Players:GetPlayers()) do
-		player.Team = spectateteam
-	end
-	
-	TeleportAllRandom(lobbyFolder)
 end
 
 
