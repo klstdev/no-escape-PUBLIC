@@ -1,8 +1,9 @@
 -- Round System
 
 --[[
-	TODO : 라운드 중 플레이어가 나갈 경우 예외처리 - 픽스됨
-	이제 알았는데 , 플레이어가 로비로 텔포할때, 아무 파트에 텔포함 ㅇㅇ... - 픽스됨
+	TODO : 라운드 중 플레이어가 나갈 경우 예외처리 - 완
+	라운드 시작하고 점프 못하게 막음 ㅇㅇ
+	이제 알았는데 , 플레이어가 로비로 텔포할때, 아무 파트에 텔포함 ㅇㅇ...
 ]]
 
 local Players = game:GetService("Players")
@@ -70,6 +71,7 @@ local function TeleportPlayer(player, part)
 	character:PivotTo(part.CFrame * CFrame.new(0, 5, 0))
 end
 
+
 local function TeleportAllRandom(folder)
 	local spawns = folder:GetChildren()
 	if #spawns == 0 then
@@ -82,6 +84,44 @@ local function TeleportAllRandom(folder)
 end
 
 local active = {} -- 라운드에 있는 플레이어 목록
+
+
+--[[
+	라운드중에 플레이어 점프 못 하게 막는 코드
+]]
+local Default_JumpPower = 50
+local Default_JumpHeight = 7.2
+
+local function SetJump(player, enabled)
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	
+	hum.JumpPower = enabled and Default_JumpPower or 0
+	hum.JumpHeight = enabled and Default_JumpHeight or 0
+end
+
+local function OnCharacterAdded(player, char)
+	local hum = char:WaitForChild("Humanoid", 5)
+	
+	if not hum then return end
+	
+	SetJump(player, not active[player])
+end
+
+
+local function OnPlayerAdded(player)
+	player.CharacterAdded:Connect(function(char)
+		OnPlayerAdded(player, char)
+	end)
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+	OnPlayerAdded(player)
+end
+
+Players.PlayerAdded:Connect(OnPlayerAdded)
+
 
 local function GetAliveCount()
 	local count = 0
@@ -109,6 +149,7 @@ local function RunRound()
 	for _, player in ipairs(Players:GetPlayers()) do
 		active[player] = true
 		player.Team = survivorteam
+		SetJump(player, false)
 	end
 	
 	TeleportAllRandom(survivorspawn)
@@ -144,6 +185,10 @@ local function RunRound()
 	end
 	
 	active = {}
+	
+	for _, player in ipairs(Players:GetPlayers()) do
+		player.Team = spectateteam
+	end
 	
 	TeleportAllRandom(lobbyFolder)
 end
