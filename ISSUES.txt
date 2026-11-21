@@ -1,2 +1,2 @@
 1. Lighting Script not working
-2. Map hitbox needs to be invivible (Transparenty = 1)
+2. Map hitbox needs to be invivible (Transparenty = 1) // FIXED
