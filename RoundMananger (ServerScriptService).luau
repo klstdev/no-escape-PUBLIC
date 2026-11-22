@@ -2,8 +2,8 @@
 
 --[[
 	TODO : 라운드 중 플레이어가 나갈 경우 예외처리 - 완
-	TODO : 모프 시스템 만들어야하는데 먼저 어케 만드는지 알아내야함 하하
-	이제 알았는데 , 플레이어가 로비로 텔포할때, 아무 파트에 텔포함 ㅇㅇ... - 수정 완
+	TODO : 모프 시스템 만들기
+	이제 알았는데 , 플레이어가 로비로 텔포할때, 아무 파트에 텔포함 ㅇㅇ... - 완
 ]]
 
 local Players = game:GetService("Players")
@@ -11,7 +11,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local teams = game:GetService("Teams")
 
-local survivorspawn = workspace:WaitForChild("SurvivorSpawns")
+local mapfolder = ServerStorage:WaitForChild("Maps") --// if you touch this im going to fuck u up
+local current = nil
 local lobbyFolder = workspace:WaitForChild("Lobby")
 
 local INTERMISSION = 20 -- 인터미션 시간 
@@ -93,8 +94,31 @@ end
 
 local active = {} -- 라운드에 있는 플레이어 목록
 
+
+local function loadMap() --// 랜덤 맵 로드
+	local maps = mapfolder:GetChildren()
+	if #maps == 0 then
+		warn("맵 없음") --// 맵 스폰 안된다고 지랄하기 전에 출력창부터봐
+		return nil
+	end
+	local map = maps[math.random(1, #maps)]:Clone()
+	
+	map.Name = "CurrentMap"
+	map.Parent = workspace
+	current = map
+	return map
+end
+
+local function UnloadMap()
+	if current then
+		current:Destroy()
+		current = nil
+	end
+end
+
 --[[
 	라운드중에 플레이어 점프 못 하게 막는 코드
+	이거 지금 보니까 쓰레기인듯, 다시 작성하겠음
 ]]
 
 local Default_JumpPower = 50
@@ -153,14 +177,23 @@ local function RunRound()
 	local survivorteam = teams:WaitForChild("Survivor")
 	local spectateteam = teams:WaitForChild("Spectate")
 	
-	active = {} -- 플레이어 등록
+	local map = loadMap()
+	local spawnfolder = map and map:FindFirstChild("SurvivorSpawns")
+	
+	if not spawnfolder then
+		--// warn("스폰파트 없음") -- 디버깅용
+		UnloadMap()
+		return
+	end
+	
+	active = {} --// 플레이어 등록
 	for _, player in ipairs(Players:GetPlayers()) do
 		active[player] = true
 		player.Team = survivorteam
 		SetJump(player, false)
 	end
 	
-	TeleportAllRandom(survivorspawn)
+	TeleportAllRandom(spawnfolder)
 
 	statusValue.Value = "Round"
 	
