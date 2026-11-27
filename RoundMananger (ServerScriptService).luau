@@ -11,15 +11,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local teams = game:GetService("Teams")
 
-local mapfolder = ServerStorage:WaitForChild("Maps") --// if you touch this im going to fuck u up
+local mapfolder = ServerStorage:WaitForChild("Maps")
 local current = nil
 local lobbyFolder = workspace:WaitForChild("Lobby")
 
-local INTERMISSION = 20 -- 인터미션 시간 
+local INTERMISSION = 20 -- 인터미션 시간
 local Round = 30 -- 라운드 지속시간
 local min_players = 1 -- 나중에 2로 바꾸셈 ( 최소 플레이어수 )
 
--- shared values (UI)
+
 local statusValue = Instance.new("StringValue")
 statusValue.Name = "Status"
 statusValue.Value = "Waiting"
@@ -30,15 +30,15 @@ timerValue.Name = "Timer"
 timerValue.Value = 0
 timerValue.Parent = ReplicatedStorage
 
+local active = {} -- 라운드에 있는 (살아있는) 플레이어 목록
+
 local function WaitPlayers()
-	
 	local targetTeam = teams:WaitForChild("Spectate") -- 관전 팀
-	-- 모든 플레이어를 관전팀으로 옮김
-	
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		player.Team = targetTeam
 	end
-	
+
 	statusValue.Value = "Waiting"
 	timerValue.Value = 0
 	while #Players:GetPlayers() < min_players do
@@ -72,28 +72,23 @@ local function TeleportPlayer(player, part)
 	character:PivotTo(part.CFrame * CFrame.new(0, 5, 0))
 end
 
-
 local function TeleportAllRandom(folder)
-	local spawns = folder:GetChildren()
-	
+	local spawns = {}
 	for _, obj in ipairs(folder:GetChildren()) do
 		if obj:IsA("BasePart") then
 			table.insert(spawns, obj)
 		end
 	end
-	
+
 	if #spawns == 0 then
 		warn(folder.Name .. " 폴더 안에 파트 없음")
 		return
 	end
-	
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		TeleportPlayer(player, spawns[math.random(1, #spawns)])
 	end
 end
-
-local active = {} -- 라운드에 있는 플레이어 목록
-
 
 local function loadMap() --// 랜덤 맵 로드
 	local maps = mapfolder:GetChildren()
@@ -102,7 +97,7 @@ local function loadMap() --// 랜덤 맵 로드
 		return nil
 	end
 	local map = maps[math.random(1, #maps)]:Clone()
-	
+
 	map.Name = "CurrentMap"
 	map.Parent = workspace
 	current = map
@@ -118,7 +113,6 @@ end
 
 --[[
 	라운드중에 플레이어 점프 못 하게 막는 코드
-	이거 지금 보니까 쓰레기인듯, 다시 작성하겠음
 ]]
 
 local Default_JumpPower = 50
@@ -128,23 +122,21 @@ local function SetJump(player, enabled)
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
-	
+
 	hum.JumpPower = enabled and Default_JumpPower or 0
 	hum.JumpHeight = enabled and Default_JumpHeight or 0
 end
 
 local function OnCharacterAdded(player, char)
 	local hum = char:WaitForChild("Humanoid", 5)
-	
 	if not hum then return end
-	
+
 	SetJump(player, not active[player])
 end
 
-
 local function OnPlayerAdded(player)
 	player.CharacterAdded:Connect(function(char)
-		OnPlayerAdded(player, char)
+		OnCharacterAdded(player, char) -- 수정: 자기 자신이 아니라 OnCharacterAdded 호출
 	end)
 end
 
@@ -154,83 +146,78 @@ end
 
 Players.PlayerAdded:Connect(OnPlayerAdded)
 
-
-local function GetAliveCount()
-	local count = 0
-	for player in pairs(active) do
-		local char = player.Character
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if hum and hum.Health > 0 then
-			count += 1
-		end
-	end
-	return count
-end
-
 Players.PlayerRemoving:Connect(function(player)
 	active[player] = nil
 end)
 
+-- 플레이어를 라운드 생존자로 등록하고, 죽으면 active에서 제거
+local function RegisterActive(player)
+	active[player] = true
 
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.Died:Once(function()
+			active[player] = nil
+		end)
+	else
+		active[player] = nil -- 캐릭터가 없으면 바로 제외
+	end
+end
 
 local function RunRound()
 	local survivorteam = teams:WaitForChild("Survivor")
 	local spectateteam = teams:WaitForChild("Spectate")
-	
+
 	local map = loadMap()
 	local spawnfolder = map and map:FindFirstChild("SurvivorSpawns")
-	
+
 	if not spawnfolder then
 		--// warn("스폰파트 없음") -- 디버깅용
 		UnloadMap()
 		return
 	end
-	
+
 	active = {} --// 플레이어 등록
 	for _, player in ipairs(Players:GetPlayers()) do
-		active[player] = true
 		player.Team = survivorteam
 		SetJump(player, false)
+		RegisterActive(player)
 	end
-	
+
 	TeleportAllRandom(spawnfolder)
 
 	statusValue.Value = "Round"
-	
+
 	local t = Round
 	while t > 0 do
+		-- 수정: 생존자가 한 명도 없을 때만 종료
 		if next(active) == nil then
-			-- warn("no active players. ending round")
 			break
 		end
-		
-		if GetAliveCount() == 0 then
-			break
-		end
+
 		timerValue.Value = t
 		task.wait(1)
 		t -= 1
 	end
 	timerValue.Value = 0
-	
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		player.Team = spectateteam
 	end
-	
-	--// LobbySpawn 파트에 텔포하게 지정하기
-	--// 내가 왜 이걸 수정 못했지? 그냥 3줄 코드인데;;
+
+	--// LobbySpawn 파트에 텔포
 	local lobbyspawn = lobbyFolder:WaitForChild("LobbySpawn")
-	
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		TeleportPlayer(player, lobbyspawn)
 	end
-	
+
 	active = {}
-	
+	UnloadMap() -- 라운드 끝나면 맵 제거 (기존엔 맵이 계속 쌓임)
 end
 
-
--- 메인 루프 // 건들면 뒤짐
+-- 메인 루프
 while true do
 	WaitPlayers()
 	RunIntermission()
